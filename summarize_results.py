@@ -1,16 +1,50 @@
 import csv
 
+
 ORIGINAL_FILE = 'domains.csv'
 INPUT_FILE = 'results.csv'
 OUTPUT_REPORT = 'live_domains_summary.csv'
 
 
+def normalize_domain(value):
+    cleaned = value.strip().lower().rstrip('.')
+    return cleaned.lstrip('*. -').replace('*', '')
+
+
+def parse_original_domains(path):
+    domains = set()
+    with open(path, 'r', encoding='utf-8', newline='') as f:
+        reader = csv.DictReader(f)
+        fieldnames = {name.strip().lower() for name in (reader.fieldnames or []) if name}
+        has_expected_headers = bool(fieldnames & {'domain', 'hostname'})
+
+        if has_expected_headers:
+            for row in reader:
+                domain = normalize_domain((row.get('Domain') or row.get('Hostname') or ''))
+                if domain:
+                    domains.add(domain)
+            return domains
+
+        f.seek(0)
+        for line in f:
+            clean = line.strip()
+            if not clean:
+                continue
+            parts = [part.strip() for part in clean.split(',')]
+            if not parts:
+                continue
+            domain = normalize_domain(parts[0])
+            if domain:
+                domains.add(domain)
+    return domains
+
+
 def summarize_results():
     category_order = [
         "Tier 1: Verified Application (Definitively Live)",
-        "Tier 1b: Browser Verified (DNS/IP Mismatch or WAF)",
         "Tier 2: SSL/TLS Protected (Definitively Live)",
         "Tier 3: Silent/Firewalled (Network Live)",
+        "Tier 3b: Browser Reachable Only (No Service on Listed IP)",
         "Tier 4: Inactive / Unreachable",
         "Other"
     ]
@@ -19,15 +53,11 @@ def summarize_results():
     all_original_domains = set()
     domain_categories = {}
 
-    def normalize_domain(value):
-        cleaned = value.strip().lower().rstrip('.')
-        return cleaned.lstrip('*. -').replace('*', '')
-
     def pick_category(status):
         if "Verified" in status and "OPEN" in status:
             return "Tier 1: Verified Application (Definitively Live)"
         if "IP Mismatch/WAF" in status:
-            return "Tier 1b: Browser Verified (DNS/IP Mismatch or WAF)"
+            return "Tier 3b: Browser Reachable Only (No Service on Listed IP)"
         if "SSL-Error" in status:
             return "Tier 2: SSL/TLS Protected (Definitively Live)"
         if "Silent" in status:
@@ -37,12 +67,7 @@ def summarize_results():
     # 1. Read the original domains list to know the baseline
     print(f"Reading {ORIGINAL_FILE} to determine baseline...")
     try:
-        with open(ORIGINAL_FILE, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                domain = normalize_domain((row.get('Domain') or row.get('Hostname') or ''))
-                if domain:
-                    all_original_domains.add(domain)
+        all_original_domains = parse_original_domains(ORIGINAL_FILE)
     except FileNotFoundError:
         print(f"Warning: {ORIGINAL_FILE} not found. Cannot determine inactive domains.\n")
 

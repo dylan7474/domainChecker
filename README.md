@@ -31,6 +31,8 @@ example.com,93.184.216.34
 
 `Domain` and `IP` column names are expected by default. `Hostname` is also accepted as an alias for `Domain`.
 
+The summarizer reads the same baseline file (`domains.csv`) and supports either header-based CSV or plain `domain,ip` lines.
+
 
 If `domains.csv` is missing, the scanner will automatically fall back to `domains.txt` and accept plain `domain,ip` lines without a header, for example:
 
@@ -60,9 +62,9 @@ The summarizer then reads `results.csv` and generates `live_domains_summary.csv`
 ## Liveness tiers (summary)
 
 - **Tier 1 – Verified Application:** direct service response received.
-- **Tier 1b – Browser Verified:** direct IP probe failed, but hostname resolved and loaded.
 - **Tier 2 – SSL/TLS Protected:** network path open but TLS handshake failed/timed out.
 - **Tier 3 – Silent/Firewalled:** open port, no meaningful response body/banner.
+- **Tier 3b – Browser Reachable Only:** direct probes to the listed IP found no service, but the hostname still loaded through normal DNS. This is a strong signal that the listed mapping may be redundant.
 - **Tier 4 – Inactive/Unreachable:** no scan or browser-level verification succeeded.
 
 The summarizer normalizes hostnames (lowercase, trims trailing dots, strips wildcard markers) before tiering so duplicate variants map to a single domain entry.
@@ -70,7 +72,7 @@ When multiple scan rows exist for the same domain, the summary keeps a single co
 
 ## Roadmap
 
-- Add wildcard-DNS detection heuristics to reduce false-positive Tier 1b classifications.
+- Add wildcard-DNS detection heuristics to reduce false-positive browser-reachable classifications.
 - Add optional JSON output alongside CSV for easier pipeline integrations.
 - Add CLI flags for runtime configuration instead of source edits.
 - Add unit tests for summarization logic and tier classification rules.
