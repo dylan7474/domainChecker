@@ -19,6 +19,22 @@ READ_TIMEOUT = 3
 MAX_WORKERS = 80   
 
 
+def is_valid_hostname(hostname):
+    cleaned = hostname.strip().rstrip('.')
+    if not cleaned or len(cleaned) > 253 or ' ' in cleaned:
+        return False
+
+    labels = cleaned.split('.')
+    for label in labels:
+        if not label or len(label) > 63:
+            return False
+        if label.startswith('-') or label.endswith('-'):
+            return False
+        if not all(ch.isalnum() or ch == '-' for ch in label):
+            return False
+    return True
+
+
 def get_ip_family(ip):
     try:
         parsed = ipaddress.ip_address(ip)
@@ -176,7 +192,7 @@ def process_row(row, tracker, writer):
     hostname = (row.get('Domain') or row.get('Hostname') or '').strip()
     ip = (row.get('IP') or row.get('Csv_IP') or row.get('CSV_IP') or '').strip()
 
-    if not hostname or not ip:
+    if not hostname or not ip or not is_valid_hostname(hostname):
         tracker.increment()
         return
 

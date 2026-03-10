@@ -31,6 +31,8 @@ example.com,93.184.216.34
 
 `Domain` and `IP` column names are expected by default. `Hostname` is also accepted as an alias for `Domain`.
 
+Rows with invalid hostnames (for example containing spaces, invalid label characters, or malformed labels) are skipped during scanning and will appear as **Tier 4** in the final summary if present in the baseline input.
+
 The summarizer reads the same baseline file (`domains.csv`) and supports either header-based CSV or plain `domain,ip` lines.
 
 
