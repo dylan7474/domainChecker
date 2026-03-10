@@ -1,0 +1,4 @@
+1pwscim.pulsant.com,139.59.201.185 
+access01.pulsant.com,46.236.17.16 
+adfs.mkn1.azurestack.pulsant.com,5.153.89.6 
+adminhosting.mkn1.azurestack.pulsant.com,5.153.89.17
