@@ -29,6 +29,8 @@ Domain,IP
 example.com,93.184.216.34
 ```
 
+`Domain` and `IP` column names are expected by default. `Hostname` is also accepted as an alias for `Domain`.
+
 ### Basic run sequence
 
 ```bash
@@ -54,6 +56,8 @@ The summarizer then reads `results.csv` and generates `live_domains_summary.csv`
 - **Tier 2 – SSL/TLS Protected:** network path open but TLS handshake failed/timed out.
 - **Tier 3 – Silent/Firewalled:** open port, no meaningful response body/banner.
 - **Tier 4 – Inactive/Unreachable:** no scan or browser-level verification succeeded.
+
+The summarizer normalizes hostnames (lowercase, trims trailing dots, strips wildcard markers) before tiering so duplicate variants map to a single domain entry.
 
 ## Roadmap
 

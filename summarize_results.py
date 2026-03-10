@@ -1,5 +1,4 @@
 import csv
-from collections import defaultdict
 
 ORIGINAL_FILE = 'domains.csv'
 INPUT_FILE = 'results.csv'
@@ -19,15 +18,19 @@ def summarize_results():
     all_original_domains = set()
     active_domains = set()
 
+    def normalize_domain(value):
+        cleaned = value.strip().lower().rstrip('.')
+        return cleaned.lstrip('*. -').replace('*', '')
+
     # 1. Read the original domains list to know the baseline
     print(f"Reading {ORIGINAL_FILE} to determine baseline...")
     try:
         with open(ORIGINAL_FILE, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
+            reader = csv.DictReader(f)
             for row in reader:
-                if row and len(row) >= 1:
-                    # Strip whitespace to match exactly how it's stored in results
-                    all_original_domains.add(row[0].strip())
+                domain = normalize_domain((row.get('Domain') or row.get('Hostname') or ''))
+                if domain:
+                    all_original_domains.add(domain)
     except FileNotFoundError:
         print(f"Warning: {ORIGINAL_FILE} not found. Cannot determine inactive domains.\n")
 
@@ -41,6 +44,7 @@ def summarize_results():
             for row in reader:
                 hostname = row.get('Hostname', '').strip()
                 status = row.get('Status', '').strip()
+                hostname = normalize_domain(hostname)
                 
                 if not hostname:
                     continue
@@ -82,12 +86,7 @@ def summarize_results():
                 sorted_domains = sorted(list(domains))
                 
                 for domain in sorted_domains:
-                    # Clean the domain string: remove leading asterisks, dots, or hyphens
-                    clean_domain = domain.lstrip('*. -')
-                    # Also replace any remaining wildcard asterisks just in case
-                    clean_domain = clean_domain.replace('*', '')
-                    
-                    writer.writerow([clean_domain, category])
+                    writer.writerow([domain, category])
 
         print(f"\nSuccess! Full summary CSV saved to: {OUTPUT_REPORT}")
 

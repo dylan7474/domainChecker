@@ -1,4 +1,5 @@
 import csv
+import ipaddress
 import socket
 import ssl
 import threading
@@ -15,6 +16,14 @@ UDP_PORTS = [53, 123]
 CONN_TIMEOUT = 3   
 READ_TIMEOUT = 3   
 MAX_WORKERS = 80   
+
+
+def get_ip_family(ip):
+    try:
+        parsed = ipaddress.ip_address(ip)
+        return socket.AF_INET6 if parsed.version == 6 else socket.AF_INET
+    except ValueError:
+        return None
 
 class SafeCsvWriter:
     def __init__(self, filename):
@@ -121,8 +130,11 @@ def grab_banner(s, hostname, port):
 
 def check_target(hostname, ip, port, writer):
     clean_host = hostname.rstrip('.')
+    family = get_ip_family(ip)
+    if family is None:
+        return False
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        with socket.socket(family, socket.SOCK_STREAM) as s:
             s.settimeout(CONN_TIMEOUT)
             if s.connect_ex((ip, port)) == 0:
                 status, info = grab_banner(s, clean_host, port)
@@ -133,8 +145,11 @@ def check_target(hostname, ip, port, writer):
     return False
 
 def check_udp_target(hostname, ip, port, writer):
+    family = get_ip_family(ip)
+    if family is None:
+        return False
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        with socket.socket(family, socket.SOCK_DGRAM) as s:
             s.settimeout(READ_TIMEOUT)
             if port == 53:
                 probe = b'\xdb\x42\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x06\x67\x6f\x6f\x67\x6c\x65\x03\x63\x6f\x6d\x00\x00\x01\x00\x01'
@@ -153,11 +168,17 @@ def check_udp_target(hostname, ip, port, writer):
     return False
 
 def process_row(row, tracker, writer):
-    if not row or len(row) < 2:
+    if not row:
         tracker.increment()
         return
-    
-    hostname, ip = row[0].strip(), row[1].strip()
+
+    hostname = (row.get('Domain') or row.get('Hostname') or '').strip()
+    ip = (row.get('IP') or row.get('Csv_IP') or row.get('CSV_IP') or '').strip()
+
+    if not hostname or not ip:
+        tracker.increment()
+        return
+
     found_live_service = False
     
     for port in TCP_PORTS:
@@ -178,19 +199,18 @@ def process_row(row, tracker, writer):
 
 def main():
     try:
-        with open(INPUT_FILE, 'r') as f:
-            total_rows = sum(1 for _ in f)
-        
+        with open(INPUT_FILE, 'r', encoding='utf-8', newline='') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
         print(f"--- Service Scanner (Failsafe Edition) ---")
         writer = SafeCsvWriter(OUTPUT_FILE)
-        tracker = ProgressTracker(total_rows)
+        tracker = ProgressTracker(len(rows) if rows else 1)
 
-        with open(INPUT_FILE, 'r') as f:
-            reader = csv.reader(f)
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                futures = [executor.submit(process_row, row, tracker, writer) for row in reader]
-                for future in futures:
-                    future.result()
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = [executor.submit(process_row, row, tracker, writer) for row in rows]
+            for future in futures:
+                future.result()
             
         print(f"\n\n--- Scan Complete! Results saved to {OUTPUT_FILE} ---")
 
