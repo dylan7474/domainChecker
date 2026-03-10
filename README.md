@@ -66,6 +66,7 @@ The summarizer then reads `results.csv` and generates `live_domains_summary.csv`
 - **Tier 4 – Inactive/Unreachable:** no scan or browser-level verification succeeded.
 
 The summarizer normalizes hostnames (lowercase, trims trailing dots, strips wildcard markers) before tiering so duplicate variants map to a single domain entry.
+When multiple scan rows exist for the same domain, the summary keeps a single conclusive category using the highest-confidence tier (Tier 1 → Tier 4, then Other).
 
 ## Roadmap
 
