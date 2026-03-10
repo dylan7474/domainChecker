@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # --- Configuration ---
 INPUT_FILE = 'domains.csv'
+INPUT_FILE_FALLBACKS = ['domains.txt']
 OUTPUT_FILE = 'results.csv'
 
 TCP_PORTS = [21, 22, 23, 25, 53, 80, 110, 143, 443, 465, 587, 993, 995, 3306, 3389, 8080] 
@@ -197,13 +198,49 @@ def process_row(row, tracker, writer):
         
     tracker.increment()
 
+
+def resolve_input_path():
+    candidates = [INPUT_FILE] + [name for name in INPUT_FILE_FALLBACKS if name != INPUT_FILE]
+    for candidate in candidates:
+        try:
+            with open(candidate, 'r', encoding='utf-8'):
+                return candidate
+        except FileNotFoundError:
+            continue
+    raise FileNotFoundError(f"Could not find any input file in: {', '.join(candidates)}")
+
+
+def parse_plaintext_rows(lines):
+    rows = []
+    for line in lines:
+        clean = line.strip()
+        if not clean:
+            continue
+        parts = [part.strip() for part in clean.split(',')]
+        if len(parts) < 2:
+            continue
+        rows.append({'Domain': parts[0], 'IP': parts[1]})
+    return rows
+
+
+def load_rows(input_path):
+    with open(input_path, 'r', encoding='utf-8', newline='') as f:
+        reader = csv.DictReader(f)
+        fieldnames = {name.strip().lower() for name in (reader.fieldnames or []) if name}
+        has_expected_headers = bool(fieldnames & {'domain', 'hostname'}) and 'ip' in fieldnames
+        if has_expected_headers:
+            return list(reader)
+
+        f.seek(0)
+        return parse_plaintext_rows(f.readlines())
+
 def main():
     try:
-        with open(INPUT_FILE, 'r', encoding='utf-8', newline='') as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
+        input_path = resolve_input_path()
+        rows = load_rows(input_path)
 
         print(f"--- Service Scanner (Failsafe Edition) ---")
+        print(f"Input file: {input_path}")
         writer = SafeCsvWriter(OUTPUT_FILE)
         tracker = ProgressTracker(len(rows) if rows else 1)
 

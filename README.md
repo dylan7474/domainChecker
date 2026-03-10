@@ -6,7 +6,7 @@ Domain Checker is a lightweight Python toolkit for validating whether domains an
 
 The project is made of two scripts:
 
-- `check_services.py`: scans each `Domain,IP` row from `domains.csv` using TCP/UDP probes and writes raw findings to `results.csv`.
+- `check_services.py`: scans each `Domain,IP` row from `domains.csv` (or `domains.txt` fallback) using TCP/UDP probes and writes raw findings to `results.csv`.
 - `summarize_results.py`: reads scanner output and baseline input, then produces a categorized liveness report in `live_domains_summary.csv`.
 
 This flow helps distinguish truly active services from stale DNS/IP mappings and firewall/WAF edge cases.
@@ -22,7 +22,7 @@ No compilation step is required.
 
 ### Input format
 
-Create a `domains.csv` file with this header:
+Create a `domains.csv` file with this header (preferred):
 
 ```csv
 Domain,IP
@@ -30,6 +30,14 @@ example.com,93.184.216.34
 ```
 
 `Domain` and `IP` column names are expected by default. `Hostname` is also accepted as an alias for `Domain`.
+
+
+If `domains.csv` is missing, the scanner will automatically fall back to `domains.txt` and accept plain `domain,ip` lines without a header, for example:
+
+```text
+example.com,93.184.216.34
+```
+
 
 ### Basic run sequence
 
