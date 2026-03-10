@@ -72,6 +72,24 @@ The summarizer then reads `results.csv` and generates `live_domains_summary.csv`
 The summarizer normalizes hostnames (lowercase, trims trailing dots, strips wildcard markers) before tiering so duplicate variants map to a single domain entry.
 When multiple scan rows exist for the same domain, the summary keeps a single conclusive category using the highest-confidence tier (Tier 1 → Tier 4, then Other).
 
+## Status values written to `results.csv`
+
+`check_services.py` writes one `Status` value per successful probe row. Current values are:
+
+- `OPEN (Verified)`: service responded (HTTP first line, TCP banner, or UDP payload).
+- `OPEN (SSL-Error)`: TCP 443 is open but TLS handshake/read did not complete cleanly.
+- `OPEN (Silent)`: TCP handshake succeeded but no response arrived before timeout.
+- `OPEN (Error)`: TCP handshake succeeded but banner/read hit a non-timeout error.
+- `LIVE (IP Mismatch/WAF)`: direct probing on the listed CSV IP found nothing, but a browser-style request to the hostname succeeded via normal DNS.
+
+The summarizer maps these statuses as follows:
+
+- `OPEN (Verified)` → **Tier 1 – Verified Application**
+- `OPEN (SSL-Error)` → **Tier 2 – SSL/TLS Protected**
+- `OPEN (Silent)` → **Tier 3 – Silent/Firewalled**
+- `LIVE (IP Mismatch/WAF)` → **Tier 3b – Browser Reachable Only**
+- `OPEN (Error)` (or any unrecognized status) → **Other**
+
 ## Roadmap
 
 - Add wildcard-DNS detection heuristics to reduce false-positive browser-reachable classifications.
